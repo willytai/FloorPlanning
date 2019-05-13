@@ -5,13 +5,14 @@ COBJS     = $(addsuffix .o, $(basename $(CSRCS)))
 CXX       = g++
 ECHO      = /bin/echo
 
-CFLAGS    = -g -Wall -std=c++11
 CFLAGS    = -O3 -Wall -std=c++11
+CFLAGS    = -g -Wall -std=c++11
 
 EXEC      = fp
 BIN       = ../bin
 TARGET    = $(BIN)/$(EXEC)
 
+.PHONY: depend
 
 all: $(COBJS)
 	@echo "> building $(EXEC)..."
@@ -28,3 +29,9 @@ all: $(COBJS)
 clean:
 	@rm -f $(COBJS) $(TARGET)
 
+depend: .depend.mak
+.depend.mak: $(CSRCS) $(CHDRS)
+	@echo Making dependencies ...
+	@$(CXX) -MM -I. $(CSRCS) > $@
+
+include .depend.mak

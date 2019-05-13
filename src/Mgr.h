@@ -4,6 +4,7 @@
 #include "Block.h"
 #include "Net.h"
 #include "Terminal.h"
+#include "BStarTree.h"
 #include <sstream>
 
 namespace FloorPlanning
@@ -30,6 +31,9 @@ public:
     // Top API
     void Parse();
     void Summary();
+    void Run();
+
+    void ShowResult() const;
 
 private:
 
@@ -51,6 +55,8 @@ private:
     std::vector<Terminal> _terminal;
     std::vector<Net>      _net;
 
+    // current best solution
+    BStarTree _bestTree;
 
     void        parse                 (const ParserState&, std::string token, std::istringstream&);
     ParserState determin_parser_state (const std::string&) const;

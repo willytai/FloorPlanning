@@ -1,5 +1,9 @@
 #include "myUsage.h"
 #include "Mgr.h"
+#include "RandNumGenerator.h"
+
+INT::RandNumGenerator   RandIntGen;
+FLOAT::RandNumGenerator RandFloatGen;
 
 int main(int argc, char *argv[])
 {
@@ -16,6 +20,8 @@ int main(int argc, char *argv[])
     usg.reset(); // tic
 
     mgr.Parse();
+    mgr.Run();
+    // mgr.ShowResult();
 
     usg.report(1, 1); // toc
     return 0;

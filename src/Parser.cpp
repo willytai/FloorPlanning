@@ -9,13 +9,12 @@ using std::endl;
 using namespace FloorPlanning;
 
 void Mgr::Summary() {
-    cout << "[Parser]" << endl;
-    cout << "\t * Block File -> " << _input_block << endl;
-    cout << "\t * Net File   -> " << _input_net << endl;
-    cout << "\t > Outline: " << _outline_width << "(Width) " << _outline_height << "(Height)" << endl;
-    cout << "\t > Number of Blocks: " << _num_blocks << endl;
-    cout << "\t > Number of Terminlas: " << _num_terminals << endl;
-    cout << "\t > Number of Nets: " << _num_nets << endl;
+    cout << "[Parser] Block File -> " << _input_block << endl;
+    cout << "[Parser] Net File   -> " << _input_net << endl;
+    cout << "[Parser] Outline: " << _outline_width << "(Width) " << _outline_height << "(Height)" << endl;
+    cout << "[Parser] Number of Blocks: " << _num_blocks << endl;
+    cout << "[Parser] Number of Terminlas: " << _num_terminals << endl;
+    cout << "[Parser] Number of Nets: " << _num_nets << endl;
 }
 
 void Mgr::Parse() {
@@ -52,7 +51,7 @@ void Mgr::Parse() {
         this->parse(state, token, iss);
     }
     this->Summary();
-    cout << "\t > CPU time: " << usg.GetTimeUsage() << 's' << endl;
+    cout << "[Parser] CPU time: " << usg.GetTimeUsage() << 's' << endl;
 }
 
 void Mgr::parse(const ParserState& state, std::string token, std::istringstream& iss) {
