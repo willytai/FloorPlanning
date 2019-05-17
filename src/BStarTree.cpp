@@ -4,6 +4,7 @@
 #include <iomanip>
 #include <cassert>
 #include <algorithm>
+#include <random>
 
 extern INT::RandNumGenerator RandIntGen;
 
@@ -32,22 +33,6 @@ void BStarTree::init(std::vector<Block>& block) {
         }
     }
     std::cout << "[B*-Tree] Initialization completed." << std::endl;
-
-    // this->pack();
-    // this->print();
-    // this->printResult();
-    // cout << endl;
-
-    // for (int i = 0; i < 100; ++i) {
-        // cout << "original" << endl;
-        // this->print();
-        // this->perturbation();
-        // this->packNeighbor();
-        // this->printNeighbor();
-        // this->printNeighborResult();
-    // }
-
-    // exit(0);
 }
 
 void BStarTree::update() {
@@ -55,7 +40,6 @@ void BStarTree::update() {
 }
 
 void BStarTree::packNeighbor() {
-    // std::cout << "[B*-Tree] Start packing _neighbor ..." << std::endl;
 
     HorizontalContour contour;
 
@@ -112,11 +96,9 @@ void BStarTree::packNeighbor() {
         if (curBlock->GetLeft() != -1) frontier.push(&_neighbor[curBlock->GetLeft()]);
         if (curBlock->GetRight() != -1) frontier.push(&_neighbor[curBlock->GetRight()]);
     }
-    // std::cout << "[B*-Tree] Packing completed." << std::endl;
 }
 
 void BStarTree::pack() {
-    // std::cout << "[B*-Tree] Start packing _nodes ..." << std::endl;
 
     HorizontalContour contour;
 
@@ -173,7 +155,6 @@ void BStarTree::pack() {
         if (curBlock->GetLeft() != -1) frontier.push(&_nodes[curBlock->GetLeft()]);
         if (curBlock->GetRight() != -1) frontier.push(&_nodes[curBlock->GetRight()]);
     }
-    // std::cout << "[B*-Tree] Packing completed." << std::endl;
 }
 
 void BStarTree::perturbation() {
@@ -186,7 +167,6 @@ void BStarTree::perturbation() {
     _neighbor_root_id = _nodes_root_id;
 
     int i = RandIntGen.Generate(1, 1000000);
-    // cout << "[B*-Tree] Perturbation op" << i << endl;
     if (i < 1000000/3) {
         this->op1();
         _op1_count += 1;
@@ -205,8 +185,6 @@ void BStarTree::op1() { // rotate a macro
     // pick a node randomly and rotate
     int id = RandIntGen.Generate(0, _neighbor.size()-1);
     _neighbor[id].Rotate();
-
-    // cout << "rotating " << _neighbor[id].GetName() << endl;
 }
 
 void BStarTree::op2() {
@@ -245,7 +223,6 @@ void BStarTree::op3() {
     int id1 = RandIntGen.Generate(0, _neighbor.size()-1);
     int id2 = id1;
     while (id1 == id2) id2 = RandIntGen.Generate(0, _neighbor.size()-1);
-    // cout << "swapping " << _neighbor[id1].GetName() << ' ' << _neighbor[id2].GetName() << endl;
 
     std::string name1   = _neighbor[id1].GetName();
     int         width1  = _neighbor[id1].GetWidth();
@@ -280,25 +257,21 @@ void BStarTree::delete_insert(int deleteID, int insertID) {
         assert(insertBlock.GetRight() == -1);
         insertBlock.SetRight(deleteID);
         deleteBlock.SetParent(insertID);
-        // cout << "inserting " << deleteBlock.GetName() << " to the right child of " << insertBlock.GetName() << endl;
     }
     else if (insertBlock.GetRight() != -1) {
         assert(insertBlock.GetLeft() == -1);
         insertBlock.SetLeft(deleteID);
         deleteBlock.SetParent(insertID);
-        // cout << "inserting " << deleteBlock.GetName() << " to the left child of " << insertBlock.GetName() << endl;
     }
     else {
         int dice = rand() % 2;
         if (dice) {
             insertBlock.SetLeft(deleteID);
             deleteBlock.SetParent(insertID);
-            // cout << "inserting " << deleteBlock.GetName() << " to the left child of " << insertBlock.GetName() << endl;
         }
         else {
             insertBlock.SetRight(deleteID);
             deleteBlock.SetParent(insertID);
-            // cout << "inserting " << deleteBlock.GetName() << " to the right child of " << insertBlock.GetName() << endl;
         }
     }
 }
