@@ -21,6 +21,7 @@ int main(int argc, char *argv[])
 
     mgr.Parse();
     mgr.Run();
+    mgr.dump();
     // mgr.ShowResult();
 
     usg.report(1, 1); // toc

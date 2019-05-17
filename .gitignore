@@ -1,4 +1,5 @@
 *.o
 prog3_floorplanning.pdf
 bin/
+*tags
 *swp

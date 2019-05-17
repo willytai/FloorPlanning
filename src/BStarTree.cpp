@@ -3,6 +3,7 @@
 #include <queue>
 #include <iomanip>
 #include <cassert>
+#include <algorithm>
 
 extern INT::RandNumGenerator RandIntGen;
 
@@ -10,53 +11,73 @@ using namespace FloorPlanning;
 
 void BStarTree::init(std::vector<Block>& block) {
     _nodes.clear();
+    _neighbor.clear();
     _nodes.resize(block.size());
+    _neighbor.resize(block.size());
     for (int i = 0; i < (int)block.size(); ++i) {
-        TreeNode* n = new TreeNode(&block[i], NULL, NULL, NULL);
+        _nodes[i] = block[i];
         if (i == 0) {
-            _root = n;
+            _nodes[0].SetParent(-1);
+            _nodes_root_id = 0;
         }
         else {
-            int parent_id = (i-1) >> 1;
-            n->SetParent(_nodes[parent_id]);
-            if (i%2 == 0) { // right child
-                _nodes[parent_id]->SetRightChild(n);
+            if (i % 2) {
+                _nodes[i-1].SetLeft(i);
+                _nodes[i].SetParent(i-1);
             }
-            else { // left child
-                _nodes[parent_id]->SetLeftChild(n);
+            else {
+                _nodes[i-1].SetRight(i);
+                _nodes[i].SetParent(i-1);
             }
         }
-        _nodes[i] = n;
     }
     std::cout << "[B*-Tree] Initialization completed." << std::endl;
+
+    // this->pack();
+    // this->print();
+    // this->printResult();
+    // cout << endl;
+
+    // for (int i = 0; i < 100; ++i) {
+        // cout << "original" << endl;
+        // this->print();
+        // this->perturbation();
+        // this->packNeighbor();
+        // this->printNeighbor();
+        // this->printNeighborResult();
+    // }
+
+    // exit(0);
 }
 
-void BStarTree::pack() {
-    std::cout << "[B*-Tree] Start packing..." << std::endl;
+void BStarTree::update() {
+    _nodes.swap(_neighbor);
+}
+
+void BStarTree::packNeighbor() {
+    // std::cout << "[B*-Tree] Start packing _neighbor ..." << std::endl;
 
     HorizontalContour contour;
 
     // BFS
-    std::queue<TreeNode*> frontier;
-    frontier.push(_root);
+    std::queue<Block*> frontier;
+    frontier.push(&_neighbor[_neighbor_root_id]);
     while (!frontier.empty()) {
-        TreeNode* curTreeNode = frontier.front();
+        Block* curBlock = frontier.front();
         frontier.pop();
-        if (curTreeNode == _root) {
-            Block* curBlock = curTreeNode->_block;
+        if (curBlock->GetParent() == -1) { // root
             curBlock->SetResultX(0);
             curBlock->SetResultY(0);
             contour[curBlock->GetLowerRightX()] = 0;
             contour[curBlock->GetLowerLeftX()]  = curBlock->GetUpperLeftY();
         }
         else {
-            const Block* parentBlock = curTreeNode->_parent->_block;
-            Block* curBlock          = curTreeNode->_block;
-            if (curTreeNode->_parent->_left == curTreeNode) { // left child
-                curBlock->SetResultX(parentBlock->GetLowerRightX());
+            const Block& parentBlock = _neighbor[curBlock->GetParent()];
+            if (parentBlock.GetLeft() == curBlock->GetID()) { // left child
+                curBlock->SetResultX(parentBlock.GetLowerRightX());
             }
             else { // right child
-                curBlock->SetResultX(parentBlock->GetLowerLeftX());
+                curBlock->SetResultX(parentBlock.GetLowerLeftX());
             }
             // the update procedure are the same
             // compute max Y
@@ -88,181 +109,226 @@ void BStarTree::pack() {
             contour[curBlock->GetLowerRightX()] = preHeight;
             contour[curBlock->GetLowerLeftX()]  = curBlock->GetUpperLeftY();
         }
-        if (curTreeNode->_left) frontier.push(curTreeNode->_left);
-        if (curTreeNode->_right) frontier.push(curTreeNode->_right);
+        if (curBlock->GetLeft() != -1) frontier.push(&_neighbor[curBlock->GetLeft()]);
+        if (curBlock->GetRight() != -1) frontier.push(&_neighbor[curBlock->GetRight()]);
     }
-    std::cout << "[B*-Tree] Packing completed." << std::endl;
+    // std::cout << "[B*-Tree] Packing completed." << std::endl;
+}
+
+void BStarTree::pack() {
+    // std::cout << "[B*-Tree] Start packing _nodes ..." << std::endl;
+
+    HorizontalContour contour;
+
+    // BFS
+    std::queue<Block*> frontier;
+    frontier.push(&_nodes[_nodes_root_id]);
+    while (!frontier.empty()) {
+        Block* curBlock = frontier.front();
+        frontier.pop();
+        if (curBlock->GetParent() == -1) { // root
+            curBlock->SetResultX(0);
+            curBlock->SetResultY(0);
+            contour[curBlock->GetLowerRightX()] = 0;
+            contour[curBlock->GetLowerLeftX()]  = curBlock->GetUpperLeftY();
+        }
+        else {
+            const Block& parentBlock = _nodes[curBlock->GetParent()];
+            if (parentBlock.GetLeft() == curBlock->GetID()) { // left child
+                curBlock->SetResultX(parentBlock.GetLowerRightX());
+            }
+            else { // right child
+                curBlock->SetResultX(parentBlock.GetLowerLeftX());
+            }
+            // the update procedure are the same
+            // compute max Y
+            auto LowerBound = contour.lower_bound(curBlock->GetLowerLeftX());
+            if ((*LowerBound).first != curBlock->GetLowerLeftX()) --LowerBound;
+            auto UpperBound = contour.upper_bound(curBlock->GetLowerRightX());
+            int maxY = 0;
+            for (auto bound = LowerBound; bound != UpperBound; ++bound) {
+                if ((*bound).second > maxY) maxY = (*bound).second;
+            }
+            curBlock->SetResultY(maxY);
+
+            // remove illegal bouds
+            if ((*LowerBound).first != curBlock->GetLowerLeftX()) ++LowerBound;
+            auto updateBound = contour.lower_bound(curBlock->GetLowerRightX());
+            if ((*updateBound).first != curBlock->GetLowerRightX()) --updateBound;
+            int preHeight = (*updateBound).second;
+            std::vector<HorizontalContour::iterator> bounds_to_be_erased;
+            for (auto bound = LowerBound; bound != UpperBound; ++bound) {
+                if ((*bound).first  < curBlock->GetLowerRightX()) {
+                    bounds_to_be_erased.push_back(bound);
+                }
+            }
+            for (int i = 0; i < (int)bounds_to_be_erased.size(); ++i) {
+                contour.erase(bounds_to_be_erased[i]);
+            }
+
+            // update the bounds
+            contour[curBlock->GetLowerRightX()] = preHeight;
+            contour[curBlock->GetLowerLeftX()]  = curBlock->GetUpperLeftY();
+        }
+        if (curBlock->GetLeft() != -1) frontier.push(&_nodes[curBlock->GetLeft()]);
+        if (curBlock->GetRight() != -1) frontier.push(&_nodes[curBlock->GetRight()]);
+    }
+    // std::cout << "[B*-Tree] Packing completed." << std::endl;
 }
 
 void BStarTree::perturbation() {
-    int i = RandIntGen.Generate(1, 3);
-    if (i == 1) return this->op1();
-    if (i == 2) return this->op2();
-    if (i == 3) return this->op3();
+    // create a new tree and preform perturbation on it
+    // prevent memory leak
+    if (_neighbor.size() != _nodes.size()) _neighbor.resize(_nodes.size());
+    for (int i = 0; i < (int)_nodes.size(); ++i) {
+        _neighbor[i] = _nodes[i];
+    }
+    _neighbor_root_id = _nodes_root_id;
+
+    int i = RandIntGen.Generate(1, 1000000);
+    // cout << "[B*-Tree] Perturbation op" << i << endl;
+    if (i < 1000000/3) {
+        this->op1();
+        _op1_count += 1;
+    }
+    else if (i < 1000000/3*2) {
+        this->op2();
+        _op2_count += 1;
+    }
+    else {
+        this->op3();
+        _op3_count += 1;
+    }
 }
 
 void BStarTree::op1() { // rotate a macro
     // pick a node randomly and rotate
-    int id = RandIntGen.Generate(0, _nodes.size()-1);
-    _nodes[id]->_block->Rotate();
+    int id = RandIntGen.Generate(0, _neighbor.size()-1);
+    _neighbor[id].Rotate();
+
+    // cout << "rotating " << _neighbor[id].GetName() << endl;
 }
 
 void BStarTree::op2() {
     // delete and insert
-    // can delete any node but only positions pointed by NULL are legal positions
+    // only delete nodes without child
+    // only positions pointed by NULL are legal positions to insert
     // prevent duplicated and illegal IDs
-    int deleteID = RandIntGen.Generate(0, _nodes.size()-1);
-    int insertID = deleteID;
-    while (insertID == deleteID || (_nodes[insertID]->_left && _nodes[insertID]->_right)) insertID = RandIntGen.Generate(0, _nodes.size()-1);
-    this->delete_by_index(deleteID);
-    this->insert_by_index(deleteID, insertID);
-
-    if (!deleteID) { // update _root
-        for (auto it = _nodes.begin(); it != _nodes.end(); ++it) {
-            if ((*it)->_parent == NULL) {
-                _root = *it;
-                break;
-            }
-        }
+    std::vector<int> candidate; candidate.resize(_neighbor.size());
+    for (int i = 0; i < (int)candidate.size(); ++i) {
+        candidate[i] = i;
     }
+    std::shuffle(candidate.begin(), candidate.end(), std::default_random_engine(RandIntGen.Generate()));
+    int deleteID = candidate.back();
+    while (_neighbor[deleteID].GetLeft() != -1 || _neighbor[deleteID].GetRight() != -1) {
+        candidate.pop_back();
+        deleteID = candidate.back();
+    }
+
+    candidate.resize(_neighbor.size());
+    for (int i = 0; i < (int)candidate.size(); ++i) {
+        candidate[i] = i;
+    }
+    std::shuffle(candidate.begin(), candidate.end(), std::default_random_engine(RandIntGen.Generate()));
+    int insertID = candidate.back();
+    while (insertID == deleteID || (_neighbor[insertID].GetLeft() != -1 && _neighbor[insertID].GetRight() != -1)) {
+        candidate.pop_back();
+        insertID = candidate.back();
+    }
+
+    this->delete_insert(deleteID, insertID);
 }
 
 void BStarTree::op3() {
     // swap two nodes
     // prevent duplicated IDs
-    int id1 = RandIntGen.Generate(0, _nodes.size()-1);
+    int id1 = RandIntGen.Generate(0, _neighbor.size()-1);
     int id2 = id1;
-    while (id1 == id2) id2 = RandIntGen.Generate(0, _nodes.size()-1);
-    std::swap(_nodes[id1]->_block, _nodes[id2]->_block);
+    while (id1 == id2) id2 = RandIntGen.Generate(0, _neighbor.size()-1);
+    // cout << "swapping " << _neighbor[id1].GetName() << ' ' << _neighbor[id2].GetName() << endl;
+
+    std::string name1   = _neighbor[id1].GetName();
+    int         width1  = _neighbor[id1].GetWidth();
+    int         height1 = _neighbor[id1].GetHeight();
+
+    std::string name2   = _neighbor[id2].GetName();
+    int         width2  = _neighbor[id2].GetWidth();
+    int         height2 = _neighbor[id2].GetHeight();
+
+    _neighbor[id1].SetName(name2);
+    _neighbor[id1].SetWidth(width2);
+    _neighbor[id1].SetHeight(height2);
+
+    _neighbor[id2].SetName(name1);
+    _neighbor[id2].SetWidth(width1);
+    _neighbor[id2].SetHeight(height1);
 }
 
-void BStarTree::delete_by_index(const int& i) {
-    this->delete_by_node(_nodes[i]);
-}
+void BStarTree::delete_insert(int deleteID, int insertID) {
+    Block& deleteBlock = _neighbor[deleteID];
+    Block& parentBlock = _neighbor[deleteBlock.GetParent()];
+    if (parentBlock.GetLeft() == deleteID) {
+        parentBlock.SetLeft(-1);
+    }
+    else if (parentBlock.GetRight() == deleteID) {
+        parentBlock.SetRight(-1);
+    }
+    else assert(0);
 
-void BStarTree::delete_by_node(TreeNode* target) {
-    if (target->_left == NULL && target->_right == NULL) {
-        if (target->_parent->_right == target) {
-            target->_parent->_right = NULL;
-        }
-        else {
-            target->_parent->_left = NULL;
-        }
+    Block& insertBlock = _neighbor[insertID];
+    if (insertBlock.GetLeft() != -1) {
+        assert(insertBlock.GetRight() == -1);
+        insertBlock.SetRight(deleteID);
+        deleteBlock.SetParent(insertID);
+        // cout << "inserting " << deleteBlock.GetName() << " to the right child of " << insertBlock.GetName() << endl;
     }
-    else if (target->_left == NULL) {
-        target->_right->_parent = target->_parent;
-        if (target->_parent->_right == target) {
-            target->_parent->_right = target->_right;
-        }
-        else {
-            target->_parent->_left = target->_right;
-        }
-    }
-    else if (target->_right == NULL) {
-        target->_left->_parent = target->_parent;
-        if (target->_parent->_left == target) {
-            target->_parent->_left = target->_left;
-        }
-        else {
-            target->_parent->_right = target->_left;
-        }
+    else if (insertBlock.GetRight() != -1) {
+        assert(insertBlock.GetLeft() == -1);
+        insertBlock.SetLeft(deleteID);
+        deleteBlock.SetParent(insertID);
+        // cout << "inserting " << deleteBlock.GetName() << " to the left child of " << insertBlock.GetName() << endl;
     }
     else {
-        // pick one child to replace itself
-        // move the other child to the original position of this child
-        // delete this other child
-        int id = RandIntGen.Generate(0, 1);
-        TreeNode *t1, *t2, *t3, *t4, *t5;
-        t1 = target->_parent;
-        t2 = target->_left->_left;
-        t3 = target->_left->_right;
-        t4 = target->_right->_left;
-        t5 = target->_right->_right;
-        if (id == 0) {
-            if (target->_parent) {
-                if (target->_parent->_right == target) {
-                    target->_parent->_right = target->_left;
-                }
-                else {
-                    target->_parent->_left = target->_left;
-                }
-            }
-
-            target->_left->_parent = t1;
-            target->_left->_left   = target->_right;
-            target->_left->_right  = target;
-
-            target->_right->_left  = t2;
-            target->_right->_right = t3;
-
-            target->_parent = target->_left;
-            target->_left   = t4;
-            target->_right  = t5;
+        int dice = rand() % 2;
+        if (dice) {
+            insertBlock.SetLeft(deleteID);
+            deleteBlock.SetParent(insertID);
+            // cout << "inserting " << deleteBlock.GetName() << " to the left child of " << insertBlock.GetName() << endl;
         }
         else {
-            if (target->_parent) {
-                if (target->_parent->_right == target) {
-                    target->_parent->_right = target->_right;
-                }
-                else {
-                    target->_parent->_left = target->_right;
-                }
-            }
-
-            target->_right->_parent = t1;
-            target->_right->_right  = target->_left;
-            target->_right->_left   = target;
-
-            target->_left->_left  = t4;
-            target->_left->_right = t5;
-
-            target->_parent = target->_right;
-            target->_left   = t2;
-            target->_right  = t3;
-        }
-        this->delete_by_node(target);
-    }
-}
-
-void BStarTree::insert_by_index(const int& targetID, const int& parentID) {
-    // choose a child randomly
-    int id = RandIntGen.Generate(0, 1);
-    _nodes[targetID]->SetParent(_nodes[parentID]);
-    _nodes[targetID]->_left = NULL;
-    _nodes[targetID]->_right = NULL;
-    if (id == 0) { // set left child if left child is NULL
-        if (_nodes[parentID]->_left) {
-            assert(_nodes[parentID]->_right == NULL);
-            _nodes[parentID]->SetRightChild(_nodes[targetID]);
-        }
-        else {
-            assert(_nodes[parentID]->_left == NULL);
-            _nodes[parentID]->SetLeftChild(_nodes[targetID]);
-        }
-    }
-    else { // set right child if right child is NULL
-        if (_nodes[parentID]->_right) {
-            assert(_nodes[parentID]->_left == NULL);
-            _nodes[parentID]->SetLeftChild(_nodes[targetID]);
-        }
-        else {
-            assert(_nodes[parentID]->_right == NULL);
-            _nodes[parentID]->SetRightChild(_nodes[targetID]);
+            insertBlock.SetRight(deleteID);
+            deleteBlock.SetParent(insertID);
+            // cout << "inserting " << deleteBlock.GetName() << " to the right child of " << insertBlock.GetName() << endl;
         }
     }
 }
 
 void BStarTree::print() {
-    this->debug("", _root);
+    this->debug("", _nodes_root_id);
 }
 
-void BStarTree::debug(std::string t, TreeNode* n) {
-    cout << t << n->_block->GetName() << endl;
-    if (!n->_left && !n->_right) return;
-    if (n->_left) debug(t+"  ", n->_left);
-    else cout << endl;
-    if (n->_right) debug(t+"  ", n->_right);
-    else cout << endl;
+void BStarTree::printNeighbor() {
+    this->debugNeighbor("", _neighbor_root_id);
+}
+
+void BStarTree::debug(std::string t, int id) {
+    if (id == -1) {
+        cout << t << "NULL" << endl;
+        return;
+    }
+    cout << t << _nodes[id].GetName() << endl;
+    debug(t+"  ", _nodes[id].GetLeft());
+    debug(t+"  ", _nodes[id].GetRight());
+}
+
+void BStarTree::debugNeighbor(std::string t, int id) {
+    if (id == -1) {
+        cout << t << "NULL" << endl;
+        return;
+    }
+    cout << t << _neighbor[id].GetName() << endl;
+    debugNeighbor(t+"  ", _neighbor[id].GetLeft());
+    debugNeighbor(t+"  ", _neighbor[id].GetRight());
 }
 
 void BStarTree::printContour(const HorizontalContour& c) {
@@ -271,4 +337,39 @@ void BStarTree::printContour(const HorizontalContour& c) {
         cout << "x -> " << std::left << std::setw(5) << (*it).first << " y -> " << (*it).second << endl;
     }
     cout << endl;
+}
+
+void BStarTree::printResult() {
+    for (int i = 0; i < (int)_nodes.size(); ++i) {
+        _nodes[i].ShowResult();
+    }
+}
+
+void BStarTree::printNeighborResult() {
+    for (int i = 0; i < (int)_neighbor.size(); ++i) {
+        _neighbor[i].ShowResult();
+    }
+}
+
+void BStarTree::getblocks(std::vector<Block>& b) {
+    std::vector<Block> vec;
+    for (int i = 0; i < (int)_nodes.size(); ++i) {
+        vec.push_back(_nodes[i]);
+    }
+    b.swap(vec);
+}
+
+void BStarTree::getneighborblocks(std::vector<Block>& b) {
+    std::vector<Block> vec;
+    for (int i = 0; i < (int)_neighbor.size(); ++i) {
+        vec.push_back(_neighbor[i]);
+    }
+    b.swap(vec);
+}
+
+void BStarTree::report() {
+    cout << "op1: " << _op1_count << endl;
+    cout << "op2: " << _op2_count << endl;
+    cout << "op3: " << _op3_count << endl;
+    this->print();
 }

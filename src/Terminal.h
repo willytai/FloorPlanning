@@ -27,6 +27,8 @@ public:
     std::string GetName() const { return _name; }
     int         GetX()    const { return _x; }
     int         GetY()    const { return _y; }
+    int         CenterX() const { return this->GetX(); }
+    int         CenterY() const { return this->GetY(); }
 
     // setting functions
     void SetName (std::string s) { _name = s; }

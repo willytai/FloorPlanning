@@ -87,7 +87,9 @@ void Mgr::parse(const ParserState& state, std::string token, std::istringstream&
                 newBlock.SetWidth(std::stoi(token));
                 iss >> token;
                 newBlock.SetHeight(std::stoi(token));
+                newBlock.SetID(_block.size());
                 _block.push_back(newBlock);
+                _block_index_name_map[newBlock.GetName()] = _block.size()-1;
                 break;
             }
 
@@ -100,6 +102,7 @@ void Mgr::parse(const ParserState& state, std::string token, std::istringstream&
                 iss >> token;
                 newTerminal.SetY(std::stoi(token));
                 _terminal.push_back(newTerminal);
+                _terminal_index_name_map[newTerminal.GetName()] = _terminal.size()-1;
                 break;
             }
 
@@ -119,7 +122,12 @@ void Mgr::parse(const ParserState& state, std::string token, std::istringstream&
 
         case AddLatestNetCompnent:
             {
-                _net.back().AddTerminalByName(token);
+                auto it_b = _block_index_name_map.find(token);
+                auto it_t = _terminal_index_name_map.find(token);
+                if (it_b != _block_index_name_map.end())
+                    _net.back().AddBlock(token);
+                if (it_t != _terminal_index_name_map.end())
+                    _net.back().AddTerminal(token);
             }
     }
 }

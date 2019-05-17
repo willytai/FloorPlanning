@@ -4,6 +4,8 @@
 #include <cstdlib>
 #include <ctime>
 
+#define SEED 5
+
 namespace INT
 {
 
@@ -14,12 +16,15 @@ public:
     ~RandNumGenerator() {}
 
     void init() {
-        srand(time(NULL));
+        srand(SEED);
+        // srand(time(NULL));
     }
 
     int Generate(int low, int high) {
         return rand() % (high - low + 1) + low;
     }
+
+    int Generate() { return rand(); }
 };
 
 }
@@ -34,7 +39,8 @@ public:
     ~RandNumGenerator() {}
 
     void init() {
-        srand(time(NULL));
+        srand(SEED);
+        // srand(time(NULL));
     }
 
     double Generate(double low, double high) {
